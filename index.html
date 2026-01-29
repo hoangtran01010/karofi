@@ -14,16 +14,15 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            /* Cập nhật Background Hình Ảnh */
             background: url('https://karofi.karofi.com/karofi-com/2026/01/xong-fa-1.jpg') no-repeat center center fixed;
-            background-size: cover; /* Đảm bảo ảnh phủ kín màn hình */
+            background-size: cover;
             height: 100vh;
             width: 100vw;
             overflow: hidden;
             position: relative;
         }
 
-        /* Container mặc định: Căn giữa, sát đáy (cho chế độ thường) */
+        /* Container mặc định */
         #stream-container {
             position: absolute;
             bottom: 190px; 
@@ -41,13 +40,12 @@
             transition: opacity 0.5s ease;
         }
 
-        /* Chế độ Đặc Biệt (Full Screen) */
+        /* Chế độ Đặc Biệt */
         #stream-container.special-mode {
             opacity: 0; 
             pointer-events: none;
         }
 
-        /* Layer riêng cho hiệu ứng xoắn ốc */
         #spiral-layer {
             position: fixed;
             top: 0;
@@ -63,19 +61,22 @@
             display: block;
         }
 
-        /* Animation xuất hiện từ dưới lên cho tin nhắn thường */
+        /* Animation xuất hiện */
         @keyframes slideInUp {
             0% { opacity: 0; transform: translateY(40px) scale(0.8); }
             100% { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* Animation Bay Ngắn thường */
-        @keyframes shortFloatFade {
+        /* Animation Bay Sang Phải & Tắt Dần */
+        @keyframes flyRightFade {
             0% { opacity: 1; transform: translate(0, 0) scale(1); }
-            100% { opacity: 0; transform: translate(var(--dest-x), var(--dest-y)) scale(0.5); }
+            100% { 
+                opacity: 0; 
+                /* Bay đến đích (bên phải) và thu nhỏ */
+                transform: translate(var(--dest-x), var(--dest-y)) scale(0.6); 
+            }
         }
 
-        /* Tin nhắn thường */
         .bubble-msg {
             position: relative; 
             animation: slideInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
@@ -86,11 +87,10 @@
         }
         
         .bubble-msg.fountain {
-            animation: shortFloatFade 4s ease-out forwards;
+            animation: flyRightFade 4s ease-out forwards;
             transform-origin: center center;
         }
 
-        /* Tin nhắn trong vòng xoắn ốc */
         .bubble-spiral {
             position: absolute;
             top: 50%;
@@ -101,14 +101,14 @@
             opacity: 0; 
         }
 
-        /* Hiệu ứng pulse */
         @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .live-dot { animation: pulse-dot 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
 </head>
 <body>
 
-    <!-- Header trạng thái -->
+    <audio id="msg-sound" src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/123941/facebook-chat.mp3" preload="auto"></audio>
+
     <div id="header-btn" class="absolute top-6 left-6 z-[100] cursor-pointer" onclick="triggerSpiralEffect()">
         <div class="bg-black/30 backdrop-blur-md px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg select-none hover:bg-black/40 transition-all duration-200 active:scale-95">
             <span class="w-2.5 h-2.5 rounded-full bg-red-500 live-dot shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
@@ -116,31 +116,31 @@
         </div>
     </div>
 
-    <!-- Khu vực hiển thị tin nhắn thường -->
     <div id="stream-container"></div>
-
-    <!-- Khu vực hiển thị hiệu ứng xoắn ốc -->
     <div id="spiral-layer"></div>
 
     <script>
-        // --- CẤU HÌNH ---
         const SHEET_ID = '1W7Gi5uKOXZZvXXfnrDwPUwY48fEkr1w-Vw2siSz-Ef0'; 
         const SHEET_NAME = 'loi-chuc'; 
         const QUERY = 'SELECT B';
-        
         const SPAWN_RATE = 1500; 
         
-        // --- LOGIC ---
         const API_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}&tq=${encodeURIComponent(QUERY)}`;
         const container = document.getElementById('stream-container');
         const spiralLayer = document.getElementById('spiral-layer');
+        const soundEffect = document.getElementById('msg-sound');
         
         let messagePool = []; 
         let currentIndex = 0; 
         let isFetching = false;
-        let directionSequence = 0;
-        
         let isSpecialMode = false; 
+
+        function playSound() {
+            if (soundEffect) {
+                soundEffect.currentTime = 0; 
+                soundEffect.play().catch(e => console.log("Chờ tương tác"));
+            }
+        }
 
         async function fetchData() {
             if (isFetching) return;
@@ -159,38 +159,37 @@
                 });
                 if (newPool.length > 0) messagePool = newPool;
             } catch (error) {
-                console.error("Lỗi kết nối Sheet:", error);
+                console.error("Lỗi Sheet:", error);
             } finally {
                 isFetching = false;
             }
         }
 
-        // --- HIỆU ỨNG XOẮN ỐC ---
         function triggerSpiralEffect() {
+            if (soundEffect) {
+                soundEffect.play().then(() => {
+                    soundEffect.pause();
+                    soundEffect.currentTime = 0;
+                }).catch(() => {});
+            }
+
             if (messagePool.length === 0 || isSpecialMode) return;
-            
             isSpecialMode = true;
-            
-            // 1. Ẩn nội dung cũ
             container.innerHTML = ''; 
             container.classList.add('special-mode');
             spiralLayer.innerHTML = '';
             spiralLayer.classList.add('active');
 
-            // Cấu hình vòng xoắn
             const MSG_COUNT = 40; 
             const DURATION = 8000; 
             const DELAY_BETWEEN = 200; 
             const ROTATIONS = 3; 
-            
             const bubbles = [];
 
-            // 2. Tạo sẵn các phần tử
             for (let i = 0; i < MSG_COUNT; i++) {
                 const content = messagePool[i % messagePool.length];
                 const div = document.createElement('div');
                 div.className = 'bubble-spiral flex gap-2 items-center';
-                
                 const colors = ['bg-blue-500', 'bg-sky-500', 'bg-cyan-500', 'bg-indigo-500', 'bg-teal-500', 'bg-blue-600'];
                 const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
@@ -202,12 +201,10 @@
                         ${escapeHtml(content)}
                     </div>
                 `;
-                
                 spiralLayer.appendChild(div);
                 bubbles.push(div);
             }
 
-            // 3. Animation Loop
             let startTime = null;
             const totalAnimationTime = DURATION + (MSG_COUNT * DELAY_BETWEEN) + 1000;
 
@@ -219,31 +216,18 @@
                     const itemStart = index * DELAY_BETWEEN;
                     let p = (elapsed - itemStart) / DURATION;
 
-                    if (p < 0) {
-                        bubble.style.opacity = 0;
-                        return;
-                    } 
-                    
-                    if (p > 1) {
-                        bubble.style.opacity = 0;
-                        bubble.style.transform = 'translate(-50%, -50%) scale(0)';
-                        return;
-                    }
+                    if (p < 0) { bubble.style.opacity = 0; return; } 
+                    if (p > 1) { bubble.style.opacity = 0; bubble.style.transform = 'translate(-50%, -50%) scale(0)'; return; }
 
                     bubble.style.opacity = 1;
-
                     const maxR = window.innerWidth * 0.6; 
                     const currentR = maxR * (1 - p); 
                     const angle = p * (Math.PI * 2 * ROTATIONS);
-                    
                     const wave = Math.sin(p * 20) * 20; 
                     const finalR = currentR + wave;
-
                     const x = finalR * Math.cos(angle);
                     const y = finalR * Math.sin(angle);
-
                     const scale = 0.8 * (1 - p * 0.5); 
-
                     bubble.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${scale})`;
                 });
 
@@ -257,11 +241,10 @@
                     container.innerHTML = ''; 
                 }
             }
-
             requestAnimationFrame(animate);
         }
 
-        // --- LOGIC TIN NHẮN THƯỜNG ---
+        // --- HÀM XỬ LÝ BAY SANG PHẢI ---
         function fountainEffect(element) {
             if (!element || element.classList.contains('fountain')) return;
 
@@ -275,18 +258,17 @@
 
             document.body.appendChild(element);
 
-            const dirIndex = directionSequence % 3;
-            directionSequence++;
+            // LOGIC BAY SANG PHẢI
+            // Dest X: Bay sang phải từ 30vw đến 50vw (so với vị trí hiện tại)
+            const destXVal = (Math.random() * 20 + 30); 
+            const destX = destXVal + 'vw';
 
-            let destXVal = 0;
-            if (dirIndex === 0) destXVal = -(Math.random() * 10 + 15);
-            else if (dirIndex === 1) destXVal = (Math.random() * 10 - 5);
-            else destXVal = (Math.random() * 10 + 15);
+            // Dest Y: Bay tản nhẹ lên/xuống (-15vh đến +15vh) để tạo độ tự nhiên
+            const destYVal = (Math.random() * 30 - 15);
+            const destY = destYVal + 'vh';
 
-            const destYVal = -(Math.random() * 15 + 20);
-
-            element.style.setProperty('--dest-x', destXVal + 'vw');
-            element.style.setProperty('--dest-y', destYVal + 'vh');
+            element.style.setProperty('--dest-x', destX);
+            element.style.setProperty('--dest-y', destY);
             
             element.classList.add('fountain');
 
@@ -296,6 +278,8 @@
         function spawnBubble() {
             if (isSpecialMode) return; 
             if (messagePool.length === 0) return;
+
+            playSound();
 
             const content = messagePool[currentIndex];
             currentIndex = (currentIndex + 1) % messagePool.length;
@@ -336,7 +320,6 @@
             return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
-        // Khởi chạy
         fetchData();
         setInterval(fetchData, 5000);
         setInterval(spawnBubble, SPAWN_RATE);
