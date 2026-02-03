@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Karofi Livestream</title>
+    <title>Karofi Livestream Xông Faaaa</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
@@ -20,12 +20,18 @@
             width: 100vw;
             overflow: hidden;
             position: relative;
+            background-color: #000;
         }
 
-        /* Container mặc định */
+        /* --- UI Cơ bản --- */
+        /* Thêm transition cho các nút để ẩn mượt mà */
+        #header-btn, #sound-toggle {
+            transition: opacity 1s ease;
+        }
+
         #stream-container {
             position: absolute;
-            bottom: 205px; 
+            bottom: 190px; 
             left: 50%;
             transform: translateX(-50%); 
             width: auto;
@@ -40,43 +46,89 @@
             transition: opacity 0.5s ease;
         }
 
-        /* Chế độ Đặc Biệt */
-        #stream-container.special-mode {
+        #stream-container.hidden-mode {
             opacity: 0; 
             pointer-events: none;
         }
 
-        #spiral-layer {
+        #final-bg {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://karofi.karofi.com/karofi-com/2026/01/xong-fa-end.jpg') no-repeat center center fixed;
+            background-size: cover;
+            z-index: 10; 
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 3s ease; /* Tăng thời gian hiện nền lên 3s cho mượt */
+        }
+        #final-bg.active {
+            opacity: 1;
+        }
+
+        /* Nền hiệu ứng không gian sâu */
+        #color-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            /* Gradient xuyên tâm tạo cảm giác đường hầm sâu */
+            background: radial-gradient(circle at center, #00020a 0%, #001a4d 40%, #0047BA 100%);
+            z-index: 25; 
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1.5s ease-in-out; 
+        }
+        #color-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Container 3D chính */
+        #special-layer {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
             z-index: 30;
             pointer-events: none;
             display: none; 
+            perspective: 800px; /* Góc nhìn camera rộng */
+            overflow: hidden;
         }
-        
-        #spiral-layer.active {
+        #special-layer.active {
             display: block;
         }
 
-        /* Animation xuất hiện */
+        /* Container chứa các chữ, dùng để xoay/nghiêng (Parallax) */
+        #tunnel-scene {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            transform-style: preserve-3d;
+        }
+
+        /* Style cho từng từ trong đường hầm */
+        .tunnel-word {
+            position: absolute;
+            left: 0; top: 0;
+            white-space: nowrap;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(0, 168, 232, 0.8), 0 0 20px rgba(0, 71, 186, 0.6);
+            transform-style: preserve-3d;
+            will-change: transform, opacity;
+            text-align: center;
+            /* Căn giữa chính nó để tính toán tọa độ chuẩn */
+            transform: translate(-50%, -50%);
+        }
+
+        /* --- Animation Tin nhắn thường (Bubble) --- */
         @keyframes slideInUp {
             0% { opacity: 0; transform: translateY(40px) scale(0.8); }
             100% { opacity: 1; transform: translateY(0) scale(1); }
         }
-
-        /* Animation Bay Sang Phải & Tắt Dần */
         @keyframes flyRightFade {
             0% { opacity: 1; transform: translate(0, 0) scale(1); }
-            100% { 
-                opacity: 0; 
-                /* Bay đến đích (bên phải) và thu nhỏ */
-                transform: translate(var(--dest-x), var(--dest-y)) scale(0.6); 
-            }
+            100% { opacity: 0; transform: translate(var(--dest-x), var(--dest-y)) scale(0.6); }
         }
-
         .bubble-msg {
             position: relative; 
             animation: slideInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
@@ -85,39 +137,56 @@
             z-index: 20;
             transition: all 0.5s ease;
         }
-        
         .bubble-msg.fountain {
             animation: flyRightFade 4s ease-out forwards;
             transform-origin: center center;
         }
-
-        .bubble-spiral {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            white-space: nowrap;
-            will-change: transform, opacity;
-            opacity: 0; 
-        }
-
         @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .live-dot { animation: pulse-dot 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        
+        /* Hiệu ứng scroll hint */
+        .scroll-hint {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.6);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            animation: pulse-dot 2s infinite;
+            z-index: 40;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s;
+        }
+        .scroll-hint.active { opacity: 1; }
     </style>
 </head>
 <body>
-
     <audio id="msg-sound" src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/123941/facebook-chat.mp3" preload="auto"></audio>
 
-    <div id="header-btn" class="absolute top-6 left-6 z-[100] cursor-pointer" onclick="triggerSpiralEffect()">
+    <!-- Nút "Xông Faaaaa" -->
+    <div id="header-btn" class="absolute top-6 left-6 z-[100] cursor-pointer" onclick="triggerTunnelEffect()">
         <div class="bg-black/30 backdrop-blur-md px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg select-none hover:bg-black/40 transition-all duration-200 active:scale-95">
             <span class="w-2.5 h-2.5 rounded-full bg-red-500 live-dot shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
             <span class="text-xs text-white font-bold tracking-wide uppercase">Xông Faaaaa</span>
         </div>
     </div>
 
+    <div id="sound-toggle" class="absolute bottom-6 right-6 z-[100] cursor-pointer" onclick="toggleSound()">
+        <div class="bg-black/30 backdrop-blur-md w-12 h-12 rounded-full flex items-center justify-center border border-white/10 shadow-lg select-none hover:bg-black/40 transition-all duration-200 active:scale-95 text-white">
+            <i id="sound-icon" class="fa-solid fa-volume-xmark text-lg"></i>
+        </div>
+    </div>
+
     <div id="stream-container"></div>
-    <div id="spiral-layer"></div>
+    <div id="final-bg"></div>
+    <div id="color-overlay"></div>
+    <div id="special-layer">
+        <div id="tunnel-scene"></div>
+    </div>
+    <div id="scroll-hint" class="scroll-hint"><i class="fa-solid fa-angles-up ml-1"></i></div>
 
     <script>
         const SHEET_ID = '1W7Gi5uKOXZZvXXfnrDwPUwY48fEkr1w-Vw2siSz-Ef0'; 
@@ -126,19 +195,57 @@
         const SPAWN_RATE = 1500; 
         
         const API_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}&tq=${encodeURIComponent(QUERY)}`;
+        
         const container = document.getElementById('stream-container');
-        const spiralLayer = document.getElementById('spiral-layer');
+        const specialLayer = document.getElementById('special-layer');
+        const tunnelScene = document.getElementById('tunnel-scene');
+        const colorOverlay = document.getElementById('color-overlay');
+        const finalBgLayer = document.getElementById('final-bg');
         const soundEffect = document.getElementById('msg-sound');
+        const soundIcon = document.getElementById('sound-icon');
+        const scrollHint = document.getElementById('scroll-hint');
+        const headerBtn = document.getElementById('header-btn');
+        const soundToggle = document.getElementById('sound-toggle');
         
         let messagePool = []; 
         let currentIndex = 0; 
         let isFetching = false;
-        let isSpecialMode = false; 
+        let isSpecialMode = false;
+        let isSoundOn = false;
+
+        // Variables for 3D Tunnel
+        let tunnelWords = [];
+        let animationId;
+        let tunnelSpeed = 5; // Tốc độ cơ bản
+        let baseSpeed = 5;
+        let travelDistance = 0;
+        let isClearing = false; // Flag mới: Xác nhận đang dọn dẹp màn hình
+        
+        // Mouse interaction vars
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        let targetParallaxX = 0;
+        let targetParallaxY = 0;
+        let currentParallaxX = 0;
+        let currentParallaxY = 0;
+
+        function toggleSound() {
+            isSoundOn = !isSoundOn;
+            if (isSoundOn) {
+                soundIcon.className = "fa-solid fa-volume-high text-green-400";
+                playSound();
+            } else {
+                soundIcon.className = "fa-solid fa-volume-xmark text-gray-300";
+            }
+        }
 
         function playSound() {
-            if (soundEffect) {
+            if (isSoundOn && soundEffect) {
                 soundEffect.currentTime = 0; 
-                soundEffect.play().catch(e => console.log("Chờ tương tác"));
+                soundEffect.play().catch(e => {
+                    isSoundOn = false;
+                    soundIcon.className = "fa-solid fa-volume-xmark text-gray-300";
+                });
             }
         }
 
@@ -159,95 +266,200 @@
                 });
                 if (newPool.length > 0) messagePool = newPool;
             } catch (error) {
-                console.error("Lỗi Sheet:", error);
+                console.error("Lỗi Google Sheet:", error);
             } finally {
                 isFetching = false;
             }
         }
 
-        function triggerSpiralEffect() {
-            if (soundEffect) {
-                soundEffect.play().then(() => {
-                    soundEffect.pause();
-                    soundEffect.currentTime = 0;
-                }).catch(() => {});
+        // --- 3D TUNNEL ENGINE ---
+        
+        // Listeners for interactions
+        window.addEventListener('mousemove', (e) => {
+            if (!isSpecialMode) return;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        window.addEventListener('wheel', (e) => {
+            if (!isSpecialMode) return;
+            // Boost speed on scroll
+            tunnelSpeed += 15; 
+            // Clamp max speed
+            if (tunnelSpeed > 80) tunnelSpeed = 80;
+        });
+
+        function createTunnelWord(content, index, total) {
+            const el = document.createElement('div');
+            el.className = 'tunnel-word';
+            el.innerText = content;
+            
+            // Random styling for variety
+            const scaleBase = Math.random() * 0.8 + 0.8; // 0.8 -> 1.6 rem
+            el.style.fontSize = `${scaleBase}rem`;
+            el.style.color = Math.random() > 0.7 ? '#00A8E8' : '#FFFFFF'; // Blue accent
+
+            tunnelScene.appendChild(el);
+
+            // Polar coordinates for Tube shape
+            // radius: khoảng cách từ tâm ống.
+            const radius = Math.random() * 200 + 250; // 250px - 450px radius
+            const angle = Math.random() * Math.PI * 2; // Random angle 0-360 deg
+            
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            
+            // Start Z position spread out
+            const zStart = -2000 + (Math.random() * 3000); 
+
+            return {
+                element: el,
+                x: x,
+                y: y,
+                z: zStart,
+                initialZ: zStart,
+                rotationZ: 0, // Bỏ góc nghiêng
+                id: index
+            };
+        }
+
+        function renderTunnelLoop() {
+            if (!isSpecialMode) return;
+
+            // 1. Physics: Speed Decay (Friction)
+            tunnelSpeed += (baseSpeed - tunnelSpeed) * 0.05;
+            
+            // 2. Physics: Move BACKWARD (Reverse direction)
+            travelDistance -= tunnelSpeed; 
+
+            // 3. Camera Parallax (Smooth lerp)
+            const centerW = window.innerWidth / 2;
+            const centerH = window.innerHeight / 2;
+            
+            targetParallaxX = (mouseX - centerW) * 0.5; // Sensitivity
+            targetParallaxY = (mouseY - centerH) * 0.5;
+
+            currentParallaxX += (targetParallaxX - currentParallaxX) * 0.1;
+            currentParallaxY += (targetParallaxY - currentParallaxY) * 0.1;
+
+            const rotateY = (mouseX - centerW) * 0.02; 
+            const rotateX = -(mouseY - centerH) * 0.02;
+            
+            tunnelScene.style.transform = `
+                translate(-50%, -50%) 
+                translate3d(${-currentParallaxX}px, ${-currentParallaxY}px, 0)
+                rotateX(${rotateX}deg)
+                rotateY(${rotateY}deg)
+            `;
+
+            // 4. Update Words
+            const tunnelLength = 4000; 
+            const deepZ = -3500; // Điểm sâu nhất
+
+            tunnelWords.forEach(word => {
+                let currentZ = word.z + travelDistance;
+
+                // Loop logic: 
+                // Nếu đang Clearing (isClearing = true), KHÔNG recycle chữ -> để chữ bay mất hút luôn
+                if (!isClearing && currentZ < deepZ) {
+                    word.z += tunnelLength;
+                    currentZ += tunnelLength;
+                }
+
+                // Opacity Logic
+                let opacity = 1;
+                
+                // Mờ dần khi đi vào bóng tối
+                if (currentZ < -1500) {
+                     opacity = Math.max(0, (currentZ - deepZ) / 2000); 
+                }
+                
+                // Mờ dần khi vừa xuất hiện sau lưng camera
+                if (currentZ > 200) {
+                     opacity = 1 - (currentZ - 200) / 300;
+                }
+                
+                // Final Transform
+                word.element.style.opacity = Math.max(0, Math.min(1, opacity));
+                word.element.style.transform = `
+                    translate3d(${word.x}px, ${word.y}px, ${currentZ}px) 
+                    rotateZ(${word.rotationZ}deg) 
+                `;
+            });
+
+            animationId = requestAnimationFrame(renderTunnelLoop);
+        }
+
+        // --- MAIN TRIGGER ---
+        function triggerTunnelEffect() {
+            if (isSoundOn && soundEffect) {
+                soundEffect.play().then(() => { soundEffect.pause(); soundEffect.currentTime = 0; }).catch(() => {});
             }
 
             if (messagePool.length === 0 || isSpecialMode) return;
             isSpecialMode = true;
+            isClearing = false;
+            
+            // UI Setup
+            container.classList.add('hidden-mode');
             container.innerHTML = ''; 
-            container.classList.add('special-mode');
-            spiralLayer.innerHTML = '';
-            spiralLayer.classList.add('active');
+            
+            colorOverlay.classList.add('active');
+            specialLayer.classList.add('active');
+            scrollHint.classList.add('active');
+            tunnelScene.innerHTML = '';
 
-            const MSG_COUNT = 40; 
-            const DURATION = 8000; 
-            const DELAY_BETWEEN = 200; 
-            const ROTATIONS = 3; 
-            const bubbles = [];
-
-            for (let i = 0; i < MSG_COUNT; i++) {
+            // Generate Words
+            const WORD_COUNT = 150; 
+            tunnelWords = [];
+            for (let i = 0; i < WORD_COUNT; i++) {
                 const content = messagePool[i % messagePool.length];
-                const div = document.createElement('div');
-                div.className = 'bubble-spiral flex gap-2 items-center';
-                const colors = ['bg-blue-500', 'bg-sky-500', 'bg-cyan-500', 'bg-indigo-500', 'bg-teal-500', 'bg-blue-600'];
-                const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-                div.innerHTML = `
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full ${randomColor} flex items-center justify-center text-white shadow-md border border-white/20">
-                        <i class="fa-solid fa-droplet text-xs"></i>
-                    </div>
-                    <div class="bg-white/95 backdrop-blur-xl border border-white/50 py-1.5 px-3 rounded-xl shadow-lg text-gray-800 text-xs font-bold whitespace-nowrap">
-                        ${escapeHtml(content)}
-                    </div>
-                `;
-                spiralLayer.appendChild(div);
-                bubbles.push(div);
+                tunnelWords.push(createTunnelWord(content, i, WORD_COUNT));
             }
 
-            let startTime = null;
-            const totalAnimationTime = DURATION + (MSG_COUNT * DELAY_BETWEEN) + 1000;
+            // Start Animation Loop
+            renderTunnelLoop();
 
-            function animate(timestamp) {
-                if (!startTime) startTime = timestamp;
-                const elapsed = timestamp - startTime;
+            // End Sequence Timing
+            setTimeout(() => {
+                scrollHint.classList.remove('active');
+                
+                // Giai đoạn 1 của kết thúc: Tăng tốc bay đi hết
+                isClearing = true; // Ngừng vòng lặp tái tạo chữ
+                baseSpeed = 80;    // Tốc độ ánh sáng để bay sạch khỏi màn hình
+                
+                // Đợi 3.5 giây để đảm bảo màn hình đã sạch chữ
+                setTimeout(() => {
+                    // Xóa sạch DOM để chắc chắn không còn rác
+                    tunnelScene.innerHTML = '';
+                    
+                    // Giai đoạn 2 của kết thúc: Hiện nền từ từ
+                    finalBgLayer.classList.add('active');
+                    colorOverlay.classList.remove('active');
 
-                bubbles.forEach((bubble, index) => {
-                    const itemStart = index * DELAY_BETWEEN;
-                    let p = (elapsed - itemStart) / DURATION;
+                    // --- ẨN TOÀN BỘ UI ---
+                    // Ẩn nút Xông Pha và Nút Âm lượng
+                    headerBtn.style.opacity = '0';
+                    headerBtn.style.pointerEvents = 'none';
+                    soundToggle.style.opacity = '0';
+                    soundToggle.style.pointerEvents = 'none';
+                    
+                    // Cleanup sau cùng
+                    setTimeout(() => {
+                        cancelAnimationFrame(animationId);
+                        specialLayer.classList.remove('active');
+                        tunnelScene.innerHTML = '';
+                        isClearing = false;
+                    }, 3000); // Đợi nền hiện xong mới cleanup
 
-                    if (p < 0) { bubble.style.opacity = 0; return; } 
-                    if (p > 1) { bubble.style.opacity = 0; bubble.style.transform = 'translate(-50%, -50%) scale(0)'; return; }
+                }, 3500); 
 
-                    bubble.style.opacity = 1;
-                    const maxR = window.innerWidth * 0.6; 
-                    const currentR = maxR * (1 - p); 
-                    const angle = p * (Math.PI * 2 * ROTATIONS);
-                    const wave = Math.sin(p * 20) * 20; 
-                    const finalR = currentR + wave;
-                    const x = finalR * Math.cos(angle);
-                    const y = finalR * Math.sin(angle);
-                    const scale = 0.8 * (1 - p * 0.5); 
-                    bubble.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${scale})`;
-                });
-
-                if (elapsed < totalAnimationTime) {
-                    requestAnimationFrame(animate);
-                } else {
-                    isSpecialMode = false;
-                    container.classList.remove('special-mode');
-                    spiralLayer.classList.remove('active');
-                    spiralLayer.innerHTML = '';
-                    container.innerHTML = ''; 
-                }
-            }
-            requestAnimationFrame(animate);
+            }, 10000); // Chạy hiệu ứng trong 10s đầu
         }
 
-        // --- HÀM XỬ LÝ BAY SANG PHẢI ---
+        // --- Logic thường (Bong bóng) ---
         function fountainEffect(element) {
             if (!element || element.classList.contains('fountain')) return;
-
             const rect = element.getBoundingClientRect();
             element.style.width = rect.width + 'px';
             element.style.left = rect.left + 'px';
@@ -255,38 +467,25 @@
             element.style.position = 'fixed'; 
             element.style.margin = '0';
             element.style.zIndex = '15'; 
-
             document.body.appendChild(element);
 
-            // LOGIC BAY SANG PHẢI
-            // Dest X: Bay sang phải từ 30vw đến 50vw (so với vị trí hiện tại)
             const destXVal = (Math.random() * 20 + 30); 
             const destX = destXVal + 'vw';
-
-            // Dest Y: Bay tản nhẹ lên/xuống (-15vh đến +15vh) để tạo độ tự nhiên
             const destYVal = (Math.random() * 30 - 15);
             const destY = destYVal + 'vh';
-
             element.style.setProperty('--dest-x', destX);
             element.style.setProperty('--dest-y', destY);
-            
             element.classList.add('fountain');
-
             setTimeout(() => { element.remove(); }, 4000);
         }
 
         function spawnBubble() {
-            if (isSpecialMode) return; 
-            if (messagePool.length === 0) return;
-
+            if (isSpecialMode || messagePool.length === 0) return;
             playSound();
-
             const content = messagePool[currentIndex];
             currentIndex = (currentIndex + 1) % messagePool.length;
-
             const div = document.createElement('div');
             div.className = 'bubble-msg flex gap-3 items-center';
-
             const colors = ['bg-blue-500', 'bg-sky-500', 'bg-cyan-500', 'bg-indigo-500', 'bg-teal-500', 'bg-blue-600'];
             const randomColor = colors[Math.floor(Math.random() * colors.length)];
             
@@ -298,20 +497,13 @@
                     ${escapeHtml(content)}
                 </div>
             `;
-            
             container.appendChild(div);
-
-            const MAX_STACK = 2;
-            if (container.children.length > MAX_STACK) {
-                const countToRemove = container.children.length - MAX_STACK;
-                const oldMessages = Array.from(container.children).slice(0, countToRemove);
+            if (container.children.length > 2) {
+                const oldMessages = Array.from(container.children).slice(0, container.children.length - 2);
                 oldMessages.forEach(msg => fountainEffect(msg));
             }
-
             setTimeout(() => {
-                if(div.parentNode === container && !isSpecialMode) {
-                    fountainEffect(div);
-                }
+                if(div.parentNode === container && !isSpecialMode) fountainEffect(div);
             }, 4000);
         }
 
